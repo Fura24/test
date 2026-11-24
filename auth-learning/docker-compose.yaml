@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: auth-db
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: auth-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Local dev points at the Postgres container above.
+      # For Supabase later, only these three values change (see README).
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      # Compose refuses to start if this is empty (the :? part).
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your .env file}
+    ports:
+      - "8081:8080"
+
+volumes:
+  db_data:
